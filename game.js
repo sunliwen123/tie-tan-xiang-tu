@@ -7,10 +7,24 @@
   const STORAGE_KEY = 'fec-phase-game-v1';
   const SOUND_KEY = 'fec-phase-sound';
   const QUESTION_TIME = 25;
+  const QUESTION_TOPICS = {
+    1: ['铁素体', '奥氏体', '渗碳体', '珠光体', '莱氏体'],
+    2: ['S点', 'C点', 'E点', '渗碳体', '共析线', '共晶线'],
+    3: ['亚共析钢', '共析钢', '过共析钢', '亚共晶白口铸铁', '共晶白口铸铁', '过共晶白口铸铁'],
+    4: ['杠杆定律', '组织组成物', '相组成物', '过共析钢组织', '杠杆定律', '杠杆定律'],
+    5: ['共析钢凝固', '过共析钢凝固', '亚共晶白口铸铁凝固', '过共晶白口铸铁凝固'],
+    6: ['亚共析钢组织', '过共析钢组织', '组织组成物', '亚共晶白口铸铁凝固', '组织组成物', '组织演变', '纯铁', '亚共析钢组织']
+  };
 
   const state = {
     levelIndex: 0,
     level: null,
+    runQuestions: [],
+    baseCount: 0,
+    bonusTotal: 0,
+    bonusCorrect: 0,
+    wrongTopics: {},
+    wrongQuestions: {},
     qIndex: 0,
     hearts: 3,
     mistakes: 0,
@@ -33,7 +47,8 @@
   let diagramReady = false;
 
   const $ = (id) => document.getElementById(id);
-  const currentQ = () => (state.level ? state.level.questions[state.qIndex] : null);
+  const currentQ = () => (state.level ? state.runQuestions[state.qIndex] : null);
+  const isBonus = () => state.qIndex >= state.baseCount;
 
   /* ---------------- 存储 ---------------- */
   function defaultProgress() {
@@ -213,6 +228,15 @@
     stopTimer();
     state.levelIndex = index;
     state.level = lv;
+    state.runQuestions = lv.questions.map((q, i) => ({
+      ...q,
+      topic: q.topic || (QUESTION_TOPICS[lv.id] && QUESTION_TOPICS[lv.id][i]) || '综合知识'
+    }));
+    state.baseCount = state.runQuestions.length;
+    state.bonusTotal = 0;
+    state.bonusCorrect = 0;
+    state.wrongTopics = {};
+    state.wrongQuestions = {};
     state.qIndex = 0;
     state.hearts = 3;
     state.mistakes = 0;
@@ -246,17 +270,20 @@
     state.orderItems = [];
     state.picks = [];
 
-    $('q-tag').textContent = q.type === 'order' ? '排序题' : '单选题';
-    $('q-hint').textContent = state.level.timed
-      ? `限时 ${QUESTION_TIME} 秒 · 答错或超时会失去 1 颗生命`
-      : '答错会失去 1 颗生命，但可以看解析';
+    const bonus = isBonus();
+    $('q-tag').textContent = bonus ? (q.retry ? '错题重做' : '错题补练') : q.type === 'order' ? '排序题' : '单选题';
+    $('q-hint').textContent = bonus
+      ? `针对「${q.topic}」巩固 · 补练不扣生命、不限时`
+      : state.level.timed
+        ? `限时 ${QUESTION_TIME} 秒 · 答错或超时会失去 1 颗生命`
+        : '答错会失去 1 颗生命，但可以看解析';
     $('q-text').textContent = q.q;
     $('feedback').hidden = true;
     $('feedback').className = 'feedback';
     $('combo').hidden = true;
     $('btn-next').disabled = true;
     $('btn-next').textContent = '继续';
-    $('timer').hidden = !state.level.timed;
+    $('timer').hidden = !state.level.timed || bonus;
 
     const body = $('q-body');
     body.innerHTML = '';
@@ -268,7 +295,7 @@
     }
 
     updateHUD();
-    if (state.level.timed) startTimer();
+    if (state.level.timed && !bonus) startTimer();
   }
 
   function renderChoiceQuestion(q) {
@@ -309,15 +336,20 @@
   function finishAnswer() {
     $('btn-next').disabled = false;
     if (state.hearts <= 0) $('btn-next').textContent = '查看结果';
-    $('quiz-progress').style.width = `${((state.qIndex + 1) / state.level.questions.length) * 100}%`;
+    $('quiz-progress').style.width = `${((state.qIndex + 1) / state.runQuestions.length) * 100}%`;
   }
 
   function onCorrect() {
-    state.combo += 1;
-    state.maxCombo = Math.max(state.maxCombo, state.combo);
-    const gain = 100 + (state.combo - 1) * 25;
-    state.score += gain;
-    state.correctCount += 1;
+    if (isBonus()) {
+      state.bonusCorrect += 1;
+      state.score += 50;
+    } else {
+      state.combo += 1;
+      state.maxCombo = Math.max(state.maxCombo, state.combo);
+      const gain = 100 + (state.combo - 1) * 25;
+      state.score += gain;
+      state.correctCount += 1;
+    }
     progress.stats.answered += 1;
     progress.stats.correct += 1;
     saveProgress();
@@ -328,8 +360,17 @@
 
   function onWrong() {
     state.combo = 0;
-    state.mistakes += 1;
-    state.hearts = Math.max(0, state.hearts - 1);
+    if (isBonus()) {
+      state.bonusWrong = (state.bonusWrong || 0) + 1;
+    } else {
+      const q = currentQ();
+      if (q && q.topic) {
+        state.wrongTopics[q.topic] = true;
+        if (!state.wrongQuestions[q.topic]) state.wrongQuestions[q.topic] = q;
+      }
+      state.mistakes += 1;
+      state.hearts = Math.max(0, state.hearts - 1);
+    }
     progress.stats.answered += 1;
     saveProgress();
     sfxWrong();
@@ -339,7 +380,7 @@
 
   function updateCombo() {
     const combo = $('combo');
-    if (state.combo >= 2) {
+    if (!isBonus() && state.combo >= 2) {
       $('combo-num').textContent = state.combo;
       combo.hidden = false;
       combo.style.animation = 'none';
@@ -360,7 +401,9 @@
     if (state.level) {
       $('quiz-level-name').textContent =
         `${String(state.levelIndex + 1).padStart(2, '0')} · ${state.level.name}`;
-      $('quiz-q-index').textContent = `${state.qIndex + 1} / ${state.level.questions.length}`;
+      $('quiz-q-index').textContent = isBonus()
+        ? `补练 ${state.qIndex - state.baseCount + 1} / ${state.bonusTotal}`
+        : `${state.qIndex + 1} / ${state.baseCount}`;
     }
   }
 
@@ -370,10 +413,12 @@
     fb.className = 'feedback' + (correct ? '' : ' bad');
     $('fb-icon').textContent = correct ? '✓' : '✕';
     $('fb-title').textContent = correct
-      ? (q.type === 'order' ? '排序完全正确' : '回答正确')
-      : timeout
-        ? '时间到，失去 1 颗生命'
-        : '回答错误，失去 1 颗生命';
+      ? (q.type === 'order' ? '排序完全正确' : isBonus() ? '补练回答正确' : '回答正确')
+      : isBonus()
+        ? '再巩固一下，看懂解析后继续'
+        : timeout
+          ? '时间到，失去 1 颗生命'
+          : '回答错误，失去 1 颗生命';
 
     let html = '';
     if (!correct && q.type === 'choice') {
@@ -386,13 +431,42 @@
     $('fb-explain').innerHTML = html;
   }
 
+  function findRemedial(topic) {
+    const own = (state.level.remedial || []).find((q) => q.topic === topic);
+    if (own) return own;
+    for (const lv of LEVELS) {
+      const found = (lv.remedial || []).find((q) => q.topic === topic);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function buildBonusQuestions() {
+    const extras = [];
+    Object.keys(state.wrongTopics).forEach((topic) => {
+      const remedial = findRemedial(topic);
+      const original = state.wrongQuestions[topic];
+      if (remedial) extras.push({ ...remedial, bonus: true });
+      if (original) extras.push({ ...original, bonus: true, retry: true });
+    });
+    return extras;
+  }
+
   function nextStep() {
     if (!state.answered) return;
     if (state.hearts <= 0) {
       finishLevel(true);
       return;
     }
-    if (state.qIndex + 1 >= state.level.questions.length) {
+    if (state.qIndex + 1 === state.baseCount && state.runQuestions.length === state.baseCount) {
+      const extras = buildBonusQuestions();
+      if (extras.length) {
+        state.runQuestions.push(...extras);
+        state.bonusTotal = extras.length;
+        toast(`进入错题补练：针对 ${Object.keys(state.wrongTopics).length} 个知识点追加 ${extras.length} 题`);
+      }
+    }
+    if (state.qIndex + 1 >= state.runQuestions.length) {
       finishLevel(false);
       return;
     }
@@ -549,7 +623,7 @@
   function finishLevel(failed) {
     stopTimer();
     const lv = state.level;
-    const total = lv.questions.length;
+    const total = state.baseCount;
 
     if (failed) {
       $('modal-levelup').querySelector('.levelup-card').classList.add('fail');
@@ -580,11 +654,12 @@
     $('lu-title').textContent = `${lv.name} · 通关`;
     $('lu-stars').innerHTML = starHTML(stars);
     $('lu-sub').textContent =
-      stars === 3
+      (stars === 3
         ? '零失误通关，相图的关键脉络已经掌握。'
         : stars === 2
           ? '只错了一题，把解析再过一遍就更稳了。'
-          : '顺利过关，但还有两处知识点需要回顾。';
+          : '顺利过关，但还有两处知识点需要回顾。')
+      + (state.bonusTotal ? ` 已完成 ${state.bonusTotal} 道错题补练，答对 ${state.bonusCorrect} 道。` : '');
     $('lu-correct').textContent = `${state.correctCount} / ${total}`;
     $('lu-score').textContent = state.score;
     $('lu-xp').textContent = '+' + gainedXp;
