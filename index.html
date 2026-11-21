@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>铁碳相图 · 闯关实验室</title>
+<meta name="description" content="铁碳合金相图课后巩固闯关游戏：相组成物、关键点、合金分类、杠杆定律与结晶过程。" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="bg-layer" aria-hidden="true">
+  <div class="grid"></div>
+  <div class="glow g1"></div>
+  <div class="glow g2"></div>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-logo">Fe<sub>3</sub>C</div>
+    <div class="brand-txt">
+      <strong>相图闯关实验室</strong>
+      <span>铁碳合金相图 · 课后巩固</span>
+    </div>
+  </div>
+  <nav class="top-actions">
+    <button class="pill" id="btn-handbook">知识手册</button>
+    <button class="pill" id="btn-diagram">查看相图</button>
+    <button class="pill icon" id="btn-sound" aria-label="音效开关">音效：开</button>
+  </nav>
+</header>
+
+<main class="stage">
+  <!-- ================= 首页 ================= -->
+  <section class="screen active" id="screen-home">
+    <div class="home-grid">
+      <div class="home-copy">
+        <span class="eyebrow">MATERIAL SCIENCE · Fe–Fe<sub>3</sub>C</span>
+        <h1>闯关，直到<br /><em>看懂相图</em></h1>
+        <p class="lead">
+          把「相组成物、关键温度、合金分类、杠杆定律、结晶过程」拆成 6 道关卡。
+          答对得分、连击加成，答错立刻看解析。
+        </p>
+        <div class="home-cta">
+          <button class="btn primary big" id="btn-start">开始闯关</button>
+          <button class="btn ghost big" id="btn-handbook-2">先看知识手册</button>
+        </div>
+        <div class="home-stats">
+          <div><b id="stat-stars">0</b><span>已获星星 / 18</span></div>
+          <div><b>6</b><span>关卡</span></div>
+          <div><b>35</b><span>道题目</span></div>
+        </div>
+      </div>
+      <div class="home-visual" aria-hidden="true">
+        <div class="micro-card mc-1">
+          <div class="micro pearlite"></div>
+          <div class="micro-cap"><span>珠光体 P</span><i>F + Fe₃C 片层相间</i></div>
+        </div>
+        <div class="micro-card mc-2">
+          <div class="micro ferrite"></div>
+          <div class="micro-cap"><span>铁素体 F</span><i>体心立方 α-Fe</i></div>
+        </div>
+        <div class="micro-card mc-3">
+          <div class="micro cementite"></div>
+          <div class="micro-cap"><span>渗碳体 Fe₃C</span><i>6.69% C · 硬而脆</i></div>
+        </div>
+        <div class="scan-line"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 关卡地图 ================= -->
+  <section class="screen" id="screen-map">
+    <div class="map-head">
+      <div>
+        <span class="eyebrow">LEVEL MAP</span>
+        <h2>关卡地图</h2>
+        <p class="muted">按顺序通关即可解锁下一关，每关有 3 颗生命值。</p>
+      </div>
+      <div class="map-progress">
+        <div class="ring" id="map-ring"><span id="map-ring-txt">0%</span></div>
+        <div class="map-progress-txt"><b id="map-cleared">0 / 6</b><span class="muted">已通关</span></div>
+      </div>
+    </div>
+    <div class="level-list" id="level-list"></div>
+    <div class="map-tip">
+      <span class="muted">提示：点击「查看相图」可随时对照 Fe–Fe₃C 相图作答。</span>
+    </div>
+  </section>
+
+  <!-- ================= 答题 ================= -->
+  <section class="screen" id="screen-quiz">
+    <div class="quiz-wrap">
+      <div class="quiz-top">
+        <button class="icon-btn" id="btn-quit" aria-label="退出关卡">←</button>
+        <div class="quiz-meta">
+          <span id="quiz-level-name">关卡</span>
+          <span class="dot-sep"></span>
+          <span id="quiz-q-index">1 / 5</span>
+        </div>
+        <div class="quiz-right">
+          <div class="hearts" id="quiz-hearts" aria-label="生命值"></div>
+          <div class="score-chip">得分 <b id="quiz-score">0</b></div>
+        </div>
+      </div>
+      <div class="bar"><i id="quiz-progress"></i></div>
+      <div class="timer" id="timer" hidden>
+        <div class="timer-bar"><i id="timer-fill"></i></div>
+        <span id="timer-txt">25s</span>
+      </div>
+
+      <article class="quiz-card">
+        <div class="q-head">
+          <span class="q-tag" id="q-tag">单选题</span>
+          <span class="q-hint" id="q-hint"></span>
+        </div>
+        <h2 class="q-text" id="q-text"></h2>
+        <div class="q-body" id="q-body"></div>
+
+        <div class="feedback" id="feedback" hidden>
+          <div class="fb-head"><span class="fb-icon" id="fb-icon">✓</span><b id="fb-title">回答正确</b></div>
+          <p id="fb-explain"></p>
+        </div>
+
+        <div class="q-foot">
+          <div class="combo" id="combo" hidden>连击 ×<b id="combo-num">2</b></div>
+          <button class="btn primary" id="btn-next" disabled>继续</button>
+        </div>
+      </article>
+    </div>
+  </section>
+</main>
+
+<!-- ================= 关卡结算 ================= -->
+<div class="modal" id="modal-levelup">
+  <div class="modal-card levelup-card">
+    <div class="lu-badge" id="lu-badge">关卡完成</div>
+    <h2 id="lu-title">通关</h2>
+    <div class="stars big" id="lu-stars"></div>
+    <p class="lu-sub" id="lu-sub"></p>
+    <div class="lu-stats">
+      <div><b id="lu-correct">5/5</b><span>答对</span></div>
+      <div><b id="lu-score">0</b><span>本关得分</span></div>
+      <div><b id="lu-xp">+0</b><span>经验值</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="lu-map">返回地图</button>
+      <button class="btn ghost" id="lu-retry">重玩本关</button>
+      <button class="btn primary" id="lu-next">下一关</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 相图 ================= -->
+<div class="modal" id="modal-diagram">
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <div>
+        <span class="eyebrow">Fe–Fe<sub>3</sub>C PHASE DIAGRAM</span>
+        <h2>铁碳合金相图</h2>
+      </div>
+      <button class="icon-btn" data-close="modal-diagram" aria-label="关闭">✕</button>
+    </div>
+    <div class="diagram-scroll"><div id="diagram-host"></div></div>
+    <p class="diagram-hint">← 屏幕较窄时可左右滑动查看完整相图 →</p>
+    <div class="legend" id="diagram-legend"></div>
+    <p class="muted small">相图按标准 Fe–Fe<sub>3</sub>C 亚稳相图绘制，为教学示意图，坐标非严格比例。</p>
+  </div>
+</div>
+
+<!-- ================= 知识手册 ================= -->
+<div class="modal" id="modal-handbook">
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <div>
+        <span class="eyebrow">CHEAT SHEET</span>
+        <h2>知识手册</h2>
+      </div>
+      <button class="icon-btn" data-close="modal-handbook" aria-label="关闭">✕</button>
+    </div>
+    <div class="handbook" id="handbook-body"></div>
+  </div>
+</div>
+
+<!-- ================= 通关总结 ================= -->
+<div class="modal" id="modal-final">
+  <div class="modal-card final-card">
+    <span class="eyebrow">ALL CLEAR</span>
+    <h2>相图挑战完成</h2>
+    <div class="ring big" id="final-ring"><span id="final-pct">0%</span></div>
+    <p class="final-badge" id="final-badge">见习炼金师</p>
+    <div class="lu-stats">
+      <div><b id="final-stars">0</b><span>总星数</span></div>
+      <div><b id="final-xp">0</b><span>总经验</span></div>
+      <div><b id="final-acc">0%</b><span>正确率</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="final-map">回到地图</button>
+      <button class="btn primary" id="final-restart">重新挑战</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="data.js"></script>
+<script src="diagram.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
